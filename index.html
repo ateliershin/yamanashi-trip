@@ -222,8 +222,8 @@ button{font:inherit}
       <h2>ルートマップ<small id="plan-badge" class="sun">晴れの日</small></h2>
       <div class="ctrls">
         <div class="seg" role="group" aria-label="地図の種類">
-          <button type="button" id="v-real" data-v="real" aria-pressed="true">実際の地図</button>
-          <button type="button" id="v-svg" data-v="svg" aria-pressed="false">イラスト</button>
+          <button type="button" id="v-svg" data-v="svg" aria-pressed="true">イラスト</button>
+          <button type="button" id="v-real" data-v="real" aria-pressed="false">実際の地図</button>
         </div>
         <div class="seg" role="group" aria-label="表示する日">
           <button type="button" id="f-all" data-f="all" aria-pressed="true">2日間</button>
@@ -233,10 +233,10 @@ button{font:inherit}
       </div>
     </div>
 
-    <div id="realwrap">
+    <div id="realwrap" hidden>
       <div id="lmap" aria-label="実際の地図"></div>
     </div>
-    <div id="svgwrap" hidden>
+    <div id="svgwrap">
       <div class="mapscroll">
         <svg id="svgmap" viewBox="0 0 820 300" role="img" aria-label="位置関係を実際の座標どおりに描いたイラスト地図">
           <defs>
@@ -249,7 +249,7 @@ button{font:inherit}
         </svg>
       </div>
     </div>
-    <p class="mapnote" id="mapnote">ピンを押すと、その予定の場所に移ります。地図は拡大・移動できます。</p>
+    <p class="mapnote" id="mapnote">ピンを押すと、その予定の場所に移ります。「実際の地図」に切り替えると、拡大・移動できます。</p>
 
     <div class="legend">
       <span><i class="lg-d1"></i>1日目 11/22</span>
@@ -435,7 +435,7 @@ const PLANS = {
   },
 };
 
-const state = {plan:"sun", day:"all", view:"real", hl:null};
+const state = {plan:"sun", day:"all", view:"svg", hl:null};
 const gq = q => "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q);
 const dir = (o, d, w) => "https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=" + encodeURIComponent(o) + "&destination=" + encodeURIComponent(d) + (w.length ? "&waypoints=" + encodeURIComponent(w.join("|")) : "");
 const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -665,7 +665,11 @@ function useSVG(forced){
   renderSVG();
 }
 function useReal(){
-  if (!realOk || !lmap) return;
+  if (realOk && !lmap){
+    document.getElementById("realwrap").hidden = false;
+    initLeaflet();
+  }
+  if (!realOk || !lmap) { useSVG(true); return; }
   state.view = "real";
   document.getElementById("svgwrap").hidden = true;
   document.getElementById("realwrap").hidden = false;
@@ -691,7 +695,6 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => re
 
 try { const p = localStorage.getItem("yamanashi-plan"); if (p === "rain" || p === "sun") { state.plan = p; setPressed("[data-plan]", document.getElementById("plan-" + p)); } } catch (e) {}
 drawSvgBg();
-initLeaflet();
 renderAll(true);
 // 最初の表示では地図の大きさが確定していないことがあるので、描画後と読み込み完了後に合わせ直す
 const refit = () => { if (lmap && state.view === "real") { lmap.invalidateSize(); renderLeaflet(true); } };
