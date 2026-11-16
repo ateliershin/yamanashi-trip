@@ -1,0 +1,746 @@
+<title>山梨 秋の旅しおり</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+/*LEAFLET_CSS*/
+</style>
+<style>
+/* Layout: 表紙（晴れ/雨の切替）→ 地図（実際の地図 / イラスト）→ 2日間のタイムライン → 注意事項・持ち物 */
+:root{
+  --bg:#f3f6f2; --paper:#ffffff; --ink:#1f2a26; --muted:#5d6b65; --line:#d6dfd9;
+  --d1:#c8452f; --d1-soft:#fbe4de;
+  --d2:#2b63c4; --d2-soft:#dfe8fb;
+  --rain:#3f7f8c; --rain-soft:#dcedf0;
+  --basin:#e8efdc; --road:#9aa6a0; --mount:#d5e0d3;
+  --warn:#9a6200; --warn-soft:#fff2d6;
+  --tile-filter:none;
+  --f-display:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Noto Sans JP",sans-serif;
+  --f-body:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141a18; --paper:#1c2421; --ink:#e7eeea; --muted:#9fb0a8; --line:#2f3b37;
+  --d1:#f07a62; --d1-soft:#3a221d; --d2:#79a4f0; --d2-soft:#1c2a44;
+  --rain:#7cc0cc; --rain-soft:#173236;
+  --basin:#1f2a25; --road:#5f6d67; --mount:#222d29;
+  --warn:#f0b54a; --warn-soft:#33290f;
+  --tile-filter:brightness(.72) saturate(.85);
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141a18; --paper:#1c2421; --ink:#e7eeea; --muted:#9fb0a8; --line:#2f3b37;
+  --d1:#f07a62; --d1-soft:#3a221d; --d2:#79a4f0; --d2-soft:#1c2a44;
+  --rain:#7cc0cc; --rain-soft:#173236;
+  --basin:#1f2a25; --road:#5f6d67; --mount:#222d29;
+  --warn:#f0b54a; --warn-soft:#33290f;
+  --tile-filter:brightness(.72) saturate(.85);
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.7}
+.wrap{max-width:1000px;margin:0 auto;padding-block:28px 64px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:36px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.3}
+a{color:inherit}
+.eyebrow{font-size:12px;letter-spacing:.14em;color:var(--muted);font-weight:700}
+button{font:inherit}
+:focus-visible{outline:2px solid var(--d2);outline-offset:2px}
+
+/* 表紙 */
+.cover{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:end}
+.cover h1{font-size:clamp(30px,6vw,48px);font-weight:900;letter-spacing:.02em}
+.cover p{margin:6px 0 0;color:var(--muted)}
+.facts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.chip{font-size:13px;padding:3px 12px;border-radius:999px;background:var(--paper);border:1px solid var(--line);white-space:nowrap}
+@media (max-width:600px){.cover{grid-template-columns:1fr}}
+
+.weather{display:flex;gap:6px;background:var(--paper);border:1px solid var(--line);padding:5px;border-radius:999px}
+.weather button{border:0;cursor:pointer;font-family:var(--f-display);font-weight:700;font-size:15px;padding:8px 18px;border-radius:999px;background:transparent;color:var(--muted)}
+.weather button[aria-pressed="true"][data-plan="sun"]{background:var(--warn-soft);color:var(--warn)}
+.weather button[aria-pressed="true"][data-plan="rain"]{background:var(--rain-soft);color:var(--rain)}
+
+/* 地図 */
+.mapcard{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.maphead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
+.maphead h2{font-size:22px}
+.maphead h2 small{font-family:var(--f-body);font-size:13px;font-weight:700;margin-left:8px;padding:2px 10px;border-radius:999px;vertical-align:middle}
+.maphead h2 small.sun{background:var(--warn-soft);color:var(--warn)}
+.maphead h2 small.rain{background:var(--rain-soft);color:var(--rain)}
+.ctrls{display:flex;flex-wrap:wrap;gap:8px}
+.seg{display:flex;gap:4px;background:var(--bg);padding:4px;border-radius:999px;border:1px solid var(--line)}
+.seg button{font-size:13px;font-weight:700;border:0;background:transparent;color:var(--muted);padding:5px 14px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.seg button:disabled{opacity:.4;cursor:not-allowed}
+#lmap{height:440px;border-radius:10px;border:1px solid var(--line);background:var(--bg);z-index:0}
+@media (max-width:600px){#lmap{height:380px}}
+#lmap .leaflet-tile-pane{filter:var(--tile-filter)}
+.mapnote{font-size:12.5px;color:var(--muted);margin:0}
+.mapscroll{overflow-x:auto;border-radius:10px;border:1px solid var(--line)}
+#svgmap{display:block;width:100%;min-width:680px;height:auto;background:var(--bg)}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:22px;height:4px;border-radius:2px}
+.lg-d1{background:var(--d1)} .lg-d2{background:var(--d2)}
+.routes{display:flex;flex-wrap:wrap;gap:8px}
+.gm{display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-size:13px;font-weight:700;padding:7px 14px;border-radius:999px;border:1.5px solid currentColor}
+.gm.d1{color:var(--d1)} .gm.d2{color:var(--d2)}
+.gm:hover{background:var(--bg)}
+
+/* Leaflet のピンとラベル */
+.lpins{display:flex;justify-content:center}
+.lnum{flex:none;width:26px;height:26px;border-radius:50%;color:#fff;font:700 13px/1 var(--f-body);display:grid;place-items:center;border:2.5px solid var(--paper);box-shadow:0 1px 4px rgba(0,0,0,.35);transition:transform .15s;font-variant-numeric:tabular-nums}
+.lnum+.lnum{margin-left:-5px}
+.lnum.d1{background:var(--d1)} .lnum.d2{background:var(--d2)}
+.lnum.opt{background:var(--paper);border:2px dashed currentColor;font-size:13px}
+.lnum.opt.d1{color:var(--d1)} .lnum.opt.d2{color:var(--d2)}
+.ltip .row.opt{opacity:.75}
+.lnum.on{transform:scale(1.3);position:relative;z-index:1}
+.leaflet-tooltip.ltip{background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:5px 10px;box-shadow:0 1px 5px rgba(0,0,0,.2);font-family:var(--f-body);line-height:1.35;white-space:nowrap}
+.leaflet-tooltip.ltip::before{display:none}
+.ltip .row{display:flex;align-items:baseline;gap:8px}
+.ltip .row+.row{margin-top:3px}
+.ltip .row.two{flex-direction:column;gap:0}
+.ltip .t{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.ltip .d1 .t{color:var(--d1)} .ltip .d2 .t{color:var(--d2)}
+.ltip .nm{font-size:13px;font-weight:500}
+.larrow svg{display:block}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--paper);color:var(--ink)}
+.leaflet-popup-content{font-family:var(--f-body);font-size:13px;margin:10px 14px}
+.leaflet-popup-content a{font-weight:700;color:var(--d2)}
+.leaflet-container a.leaflet-popup-close-button{color:var(--muted)}
+.leaflet-control-attribution{font-size:10px}
+
+/* イラスト地図（SVG） */
+.s-basin{fill:var(--basin)} .s-mount{fill:var(--mount)}
+.s-road{fill:none;stroke:var(--road);stroke-width:6;stroke-linecap:round;stroke-linejoin:round;opacity:.55}
+.s-small{fill:var(--muted);font-size:10.5px;font-family:var(--f-body)}
+.s-area{fill:var(--muted);font-family:var(--f-display);font-size:13px;font-weight:700;letter-spacing:.2em;opacity:.6}
+.arrow{fill:none;stroke-width:3;stroke-linecap:round;stroke-dasharray:7 6}
+.arrow.d1{stroke:var(--d1)} .arrow.d2{stroke:var(--d2)}
+.mk.d1{fill:var(--d1)} .mk.d2{fill:var(--d2)}
+.spin{cursor:pointer}
+.spin .dot{stroke:var(--paper);stroke-width:2.5}
+.spin .dot.d1{fill:var(--d1)} .spin .dot.d2{fill:var(--d2)}
+.spin .dot.on{stroke:var(--ink);stroke-width:3}
+.spin .dn{fill:#fff;font:700 12px var(--f-body);text-anchor:middle}
+.spin .dot.opt{fill:var(--paper);stroke-dasharray:3 2;stroke-width:2}
+.spin .dot.opt.d1{stroke:var(--d1)} .spin .dot.opt.d2{stroke:var(--d2)}
+.spin .dn.opt.d1{fill:var(--d1)} .spin .dn.opt.d2{fill:var(--d2)}
+.arrow.opt{stroke-width:2;stroke-dasharray:2 5;opacity:.6}
+.spin .leader{stroke:var(--muted);stroke-width:1;opacity:.6}
+.spin .box{fill:var(--paper);stroke:var(--line)}
+.spin .t{font:700 11.5px var(--f-body)}
+.spin .t.d1{fill:var(--d1)} .spin .t.d2{fill:var(--d2)}
+.spin .nm{font:500 12.5px var(--f-body);fill:var(--ink)}
+
+/* タイムライン */
+.days{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:760px){.days{grid-template-columns:1fr}}
+.day{background:var(--paper);border:1px solid var(--line);border-radius:16px;overflow:hidden;min-width:0}
+.dayhead{padding:14px 18px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.day.d1 .dayhead{background:var(--d1-soft)} .day.d2 .dayhead{background:var(--d2-soft)}
+.dayhead h2{font-size:20px}
+.day.d1 h2{color:var(--d1)} .day.d2 h2{color:var(--d2)}
+.dayhead small{color:var(--muted);font-size:13px}
+.stops{list-style:none;margin:0;padding:8px 0 12px}
+.stop{display:grid;grid-template-columns:56px 26px 1fr;gap:0 10px;padding:8px 18px;cursor:pointer}
+.stop:hover,.stop.on{background:var(--bg)}
+.stop time{font-variant-numeric:tabular-nums;font-weight:700;font-size:15px;padding-top:1px}
+.day.d1 time{color:var(--d1)} .day.d2 time{color:var(--d2)}
+.num{width:24px;height:24px;border-radius:50%;color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center;margin-top:2px;position:relative;z-index:1}
+.day.d1 .num{background:var(--d1)} .day.d2 .num{background:var(--d2)}
+.stop.noplace .num{background:transparent;border:2px dashed var(--line);color:var(--muted)}
+.stop:not(:last-child) .num::after{content:"";position:absolute;top:26px;left:10px;width:2px;height:calc(100% + 18px);background:var(--line);z-index:-1}
+.stop h3{font-size:16px;font-weight:700;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.stop p{margin:2px 0 0;font-size:13.5px;color:var(--muted)}
+.opttag{font-family:var(--f-body);font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;border:1px dashed var(--muted);color:var(--muted)}
+.stop.opt .num{background:var(--paper)!important;border:2px dashed currentColor;color:var(--d2)}
+.raintag{font-family:var(--f-body);font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;background:var(--rain-soft);color:var(--rain)}
+.gmini{font-size:12.5px;font-weight:700;text-decoration:none;display:inline-block;margin-top:4px}
+.day.d1 .gmini{color:var(--d1)} .day.d2 .gmini{color:var(--d2)}
+.gmini:hover{text-decoration:underline}
+.drive{grid-column:3;font-size:12px;color:var(--muted);margin-top:6px}
+
+.contact{display:grid;grid-template-columns:auto 1fr;gap:0 8px;margin:6px 0 0;font-size:13px}
+.contact dt{color:var(--muted);font-weight:700}
+.contact dd{margin:0;min-width:0}
+.tel{font-variant-numeric:tabular-nums;font-weight:700;text-decoration:none;color:var(--ink);user-select:all}
+.tel:hover{text-decoration:underline}
+.tn{color:var(--muted);font-size:12px}
+
+/* 住所と電話番号 */
+.contacts h2{font-size:22px;margin-bottom:12px}
+.tablewrap{overflow-x:auto;background:var(--paper);border:1px solid var(--line);border-radius:14px}
+.contacts table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
+.contacts th,.contacts td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+.contacts thead th{font-size:12px;color:var(--muted);letter-spacing:.06em}
+.contacts tbody th{font-weight:700;white-space:nowrap}
+.contacts tbody tr:last-child th,.contacts tbody tr:last-child td{border-bottom:0}
+.contacts td:last-child{white-space:nowrap}
+
+/* 注意事項 */
+.notes h2,.pack h2{font-size:22px;margin-bottom:12px}
+.notegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px}
+.note{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px 16px;min-width:0}
+.note h3{font-size:15.5px;margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.note ul{margin:0;padding-left:1.2em;font-size:13.5px}
+.note li+li{margin-top:4px}
+.tag{font-family:var(--f-body);font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px}
+.tag.d1{background:var(--d1-soft);color:var(--d1)} .tag.d2{background:var(--d2-soft);color:var(--d2)}
+.tag.w{background:var(--warn-soft);color:var(--warn)} .tag.r{background:var(--rain-soft);color:var(--rain)}
+.note.important{border-color:var(--warn);background:var(--warn-soft)}
+.note.rainnote{border-color:var(--rain);background:var(--rain-soft)}
+
+.pack .box{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:6px 18px}
+.checks label{display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer}
+.checks input{width:18px;height:18px;accent-color:var(--d2)}
+.checks input:checked+span{color:var(--muted);text-decoration:line-through}
+.foot{font-size:12px;color:var(--muted);margin:8px 0 0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+
+<div class="wrap">
+
+  <header class="cover">
+    <div>
+      <div class="eyebrow">YAMANASHI · 1泊2日 · 旅のしおり</div>
+      <h1>山梨 秋の旅しおり</h1>
+      <p>笛吹でりんご狩り、信玄餅、科学館とリニア。みんなでゆっくり回る2日間。</p>
+      <div class="facts">
+        <span class="chip"><b>11/22（日）〜 11/23（月・祝）</b></span>
+        <span class="chip">14名 · 車で移動</span>
+        <span class="chip">宿：逸仙居</span>
+      </div>
+    </div>
+    <div class="weather" role="group" aria-label="プランの切り替え">
+      <button type="button" id="plan-sun" data-plan="sun" aria-pressed="true">☀ 晴れの日</button>
+      <button type="button" id="plan-rain" data-plan="rain" aria-pressed="false">☂ 雨の日</button>
+    </div>
+  </header>
+
+  <section class="mapcard" aria-label="ルート地図">
+    <div class="maphead">
+      <h2>ルートマップ<small id="plan-badge" class="sun">晴れの日</small></h2>
+      <div class="ctrls">
+        <div class="seg" role="group" aria-label="地図の種類">
+          <button type="button" id="v-svg" data-v="svg" aria-pressed="true">イラスト</button>
+          <button type="button" id="v-real" data-v="real" aria-pressed="false">実際の地図</button>
+        </div>
+        <div class="seg" role="group" aria-label="表示する日">
+          <button type="button" id="f-all" data-f="all" aria-pressed="true">2日間</button>
+          <button type="button" id="f-d1" data-f="d1" aria-pressed="false">1日目</button>
+          <button type="button" id="f-d2" data-f="d2" aria-pressed="false">2日目</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="realwrap" hidden>
+      <div id="lmap" aria-label="実際の地図"></div>
+    </div>
+    <div id="svgwrap">
+      <div class="mapscroll">
+        <svg id="svgmap" viewBox="0 0 820 335" role="img" aria-label="位置関係を実際の座標どおりに描いたイラスト地図">
+          <defs>
+            <marker id="ah-d1" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path class="mk d1" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="ah-d2" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path class="mk d2" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+          <g id="s-bg"></g>
+          <g id="s-arrows"></g>
+          <g id="s-pins"></g>
+        </svg>
+      </div>
+    </div>
+    <p class="mapnote" id="mapnote">ピンを押すと、その予定の場所に移ります。「実際の地図」に切り替えると、拡大・移動できます。</p>
+
+    <div class="legend">
+      <span><i class="lg-d1"></i>1日目 11/22</span>
+      <span><i class="lg-d2"></i>2日目 11/23</span>
+      <span>番号は下のスケジュールの番号です</span>
+    </div>
+    <div class="routes">
+      <a class="gm d1" id="route-d1" target="_blank" rel="noopener">Googleマップで1日目のルート ↗</a>
+      <a class="gm d2" id="route-d2" target="_blank" rel="noopener">Googleマップで2日目のルート ↗</a>
+    </div>
+  </section>
+
+  <section class="days" aria-label="スケジュール">
+    <article class="day d1">
+      <div class="dayhead"><h2>1日目</h2><small>11/22（日）· 笛吹・山梨市</small></div>
+      <ol class="stops" id="list-d1"></ol>
+    </article>
+    <article class="day d2">
+      <div class="dayhead"><h2>2日目</h2><small>11/23（月・祝）· 甲府・都留</small></div>
+      <ol class="stops" id="list-d2"></ol>
+    </article>
+  </section>
+
+  <section class="contacts" aria-label="住所と電話番号">
+    <h2>住所と電話番号</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>場所</th><th>住所</th><th>電話</th></tr></thead>
+        <tbody id="contacts"></tbody>
+      </table>
+    </div>
+    <p class="foot">電話番号は観光サイトや公式サイトの掲載情報です。行く前に営業時間とあわせて確認してください。</p>
+  </section>
+
+  <section class="notes">
+    <h2>注意事項</h2>
+    <div class="notegrid">
+      <div class="note important">
+        <h3><span class="tag w">要確認</span>前日までに確かめること</h3>
+        <ul>
+          <li>見晴し園は<b>予約済み</b>。受付は 8:30〜15:00</li>
+          <li>昼食の赤富士：食べログでは「予約不可」となっているので、<b>14名で入れるか事前に電話で確認</b>。日曜の昼は混みやすい</li>
+          <li>山梨県立科学館・リニア見学センターはどちらも<b>月曜休館</b>。11/23は祝日なので開館の見込みだが、公式サイトで確認</li>
+          <li>逸仙居の電話番号・駐車台数・キッチン設備（14名分の調理器具や食器）を予約確認メールで確認</li>
+          <li>前日の天気予報で、晴れの日・雨の日どちらのプランにするか決めてグループに連絡</li>
+        </ul>
+      </div>
+      <div class="note">
+        <h3><span class="tag d1">1日目</span>見晴し園（フルーツ狩り）</h3>
+        <ul>
+          <li>山梨県笛吹市一宮町土塚240</li>
+          <li>電話 <span class="tel">0553-47-2111</span></li>
+          <li>営業 8:00〜16:00（受付は 8:30〜15:00）</li>
+          <li>勝沼ICを降りて1つ目の信号を左折、道なりに約5分</li>
+          <li>無料駐車場 20台</li>
+          <li>畑にはトイレがないので、受付で済ませておく</li>
+          <li>料金は 1,100円〜（プランによる）</li>
+        </ul>
+      </div>
+      <div class="note">
+        <h3><span class="tag d1">1日目</span>合流と移動</h3>
+        <ul>
+          <li>談合坂SAは<b>下り線</b>で合流。車ごとに到着時刻をグループに送る</li>
+          <li>先頭の車を決め、はぐれたら次の目的地で待ち合わせ</li>
+          <li>勝沼ICまでに給油とトイレを済ませておく</li>
+        </ul>
+      </div>
+      <div class="note">
+        <h3><span class="tag d1">1日目</span>信玄餅工場</h3>
+        <ul>
+          <li>日曜は工場のラインが止まっていて見学できないことがある</li>
+          <li>人気の「詰め放題」は整理券が朝のうちになくなることが多い</li>
+          <li>信玄ソフトは売店で。並ぶので時間に余裕を</li>
+        </ul>
+      </div>
+      <div class="note">
+        <h3><span class="tag d1">1日目</span>買い出しと宿</h3>
+        <ul>
+          <li>ベイシア山梨店（山梨市落合660）から逸仙居（笛吹市春日居町小松1130）までは車で約5分</li>
+          <li>15:00に買い出し、16:00のチェックインまで少し時間がある</li>
+          <li>14名分の<b>夕食＋翌朝食</b>。献立と買う物リストを事前に分担</li>
+          <li>保冷バッグ・保冷剤、ゴミ袋を持っていく</li>
+        </ul>
+      </div>
+      <div class="note">
+        <h3><span class="tag d2">2日目</span>科学館とリニア</h3>
+        <ul>
+          <li>科学館の屋外アスレチックは動きやすい服と靴で</li>
+          <li>リニアの走行試験は日によってない。運が良ければ見られるくらいで</li>
+          <li>リニア見学センターは17時ごろ閉館。14:30着なら十分</li>
+        </ul>
+      </div>
+      <div class="note">
+        <h3><span class="tag d2">2日目</span>帰りの渋滞</h3>
+        <ul>
+          <li>連休最終日の夕方、中央道上りは小仏トンネル付近で混みやすい</li>
+          <li>出発前に渋滞情報を見て、早めに出るか夕食後に出るか決める</li>
+          <li>休憩は談合坂SA（上り）が目安</li>
+        </ul>
+      </div>
+      <div class="note">
+        <h3><span class="tag d2">2日目</span><span class="opttag">オプション</span>ほったらかし温泉</h3>
+        <ul>
+          <li>山梨県山梨市矢坪1669-18 · 電話 <a class="tel" href="tel:0553231526">0553-23-1526</a></li>
+          <li>営業は日の出の1時間前〜22:00。11月下旬は5:30ごろから入れる</li>
+          <li>大人900円・小学生以下400円。<b>現金のみ</b>。タオル200円</li>
+          <li>土日祝は混む。浴場はスマホ・カメラの持ち込み禁止</li>
+          <li>山道で朝は路面が凍ることもあるので、運転は慎重に</li>
+          <li>行かない人は宿でゆっくり</li>
+        </ul>
+      </div>
+      <div class="note rainnote">
+        <h3><span class="tag r">雨の日</span>雨の日プランで変わるところ</h3>
+        <ul>
+          <li>1日目の10:00は、りんご狩りのかわりに<b>山梨県立博物館</b>（屋内。信玄餅工場のすぐ近く）。ただし11月は工事で常設展示室が休室中で、企画展だけになる</li>
+          <li>小雨なら、りんご狩りができるか見晴し園に電話で相談してもよい</li>
+          <li>2日目の科学館は、屋内の展示とプラネタリウムを中心に</li>
+          <li>雨の日の中央道は事故や渋滞が増えやすいので、帰りは早めの出発も検討</li>
+        </ul>
+      </div>
+      <div class="note">
+        <h3><span class="tag w">天気</span>寒さ対策</h3>
+        <ul>
+          <li>11月下旬の甲府は朝0〜3℃、日中でも12〜15℃くらい</li>
+          <li>見晴し園は高台にあるので風が冷たい。上着・手袋があると安心</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="pack">
+    <h2>持ち物チェック</h2>
+    <div class="box">
+      <div class="checks" id="checks"></div>
+    </div>
+    <p class="foot">チェックはこの端末のブラウザにだけ残ります。</p>
+  </section>
+
+  <p class="foot">時刻はすべて目安です。渋滞や混雑に合わせて、みんなで相談しながらゆっくり動きましょう。</p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// ===== 場所（緯度経度は住所から調べた実際の位置） =====
+const PLACES = {
+  tokyo:   {name:"東京", addr:"", tel:"", lat:35.6812, lon:139.7671, q:"東京駅", dir:"left", box:[636,47], sx:796, sy:95},
+  dango:   {name:"談合坂SA（下り）", addr:"山梨県上野原市（中央自動車道 下り線）", tel:"0554-66-2543", telNote:"総合案内", lat:35.63245, lon:139.06366, q:"談合坂SA 下り", dir:"bottom", box:[600,209]},
+  mihara:  {name:"見晴し園", addr:"山梨県笛吹市一宮町土塚240", tel:"0553-47-2111", lat:35.634579, lon:138.70079, q:"見晴し園 山梨県笛吹市一宮町土塚240", dir:"right", box:[300,199]},
+  museum:  {name:"山梨県立博物館", addr:"山梨県笛吹市御坂町成田1501-1", tel:"055-261-2631", lat:35.640823, lon:138.648819, q:"山梨県立博物館", dir:"left", off:[0,46], box:[18,233]},
+  akafuji: {name:"郷土料理とお食事処 赤富士", addr:"山梨県笛吹市石和町川中島110", tel:"050-5592-4667", telNote:"食べログ掲載の番号", lat:35.652618, lon:138.647507, q:"赤富士 山梨県笛吹市石和町川中島110", dir:"left", off:[0,20], box:[20,161]},
+  shingen: {name:"桔梗信玄餅工場テーマパーク", addr:"山梨県笛吹市一宮町坪井1928", tel:"0553-47-3700", lat:35.648216, lon:138.663895, q:"桔梗信玄餅工場テーマパーク", dir:"bottom", off:[30,0], box:[410,150]},
+  beisia:  {name:"ベイシア山梨店", addr:"山梨県山梨市落合660", tel:"0553-21-7788", lat:35.678936, lon:138.661316, q:"ベイシア 山梨店 山梨県山梨市落合660", dir:"top", box:[250,50]},
+  inn:     {name:"宿 逸仙居", addr:"山梨県笛吹市春日居町小松1130", tel:"", lat:35.664539, lon:138.662064, q:"山梨県笛吹市春日居町小松1130 逸仙居", dir:"right", box:[250,100]},
+  hottara: {name:"ほったらかし温泉", addr:"山梨県山梨市矢坪1669-18", tel:"0553-23-1526", lat:35.70155, lon:138.652649, q:"ほったらかし温泉", dir:"top", box:[230,2]},
+  science: {name:"山梨県立科学館", addr:"山梨県甲府市愛宕町358-1", tel:"055-254-8151", lat:35.667801, lon:138.578568, q:"山梨県立科学館", dir:"top", box:[14,47]},
+  linear:  {name:"山梨県立リニア見学センター", addr:"山梨県都留市小形山2381", tel:"0554-45-8121", lat:35.581142, lon:138.923187, q:"山梨県立リニア見学センター", dir:"left", box:[350,269]},
+};
+
+// ===== 予定（p が null の予定は、お店が未定なので地図には出さない） =====
+const COMMON_D1_TAIL = [
+  {t:"12:00", p:"akafuji", s:"昼食 赤富士", h:"昼食・ほうとう（赤富士）", n:"石和町の郷土料理のお店でほうとう"},
+  {t:"13:45", p:"shingen", s:"信玄餅工場", h:"桔梗信玄餅工場", n:"工場見学と信玄ソフトで休憩"},
+  {t:"15:00", p:"beisia", s:"ベイシア 買い出し", h:"ベイシア山梨店で買い出し 🛒", n:"14名分の夕食・朝食を買う"},
+  {t:"16:00", p:"inn", s:"宿 逸仙居", h:"宿「逸仙居」にチェックイン", n:"ベイシアから車で約5分。宿でみんなで夕食づくり"},
+];
+const OPT_D2 = rain => [
+  {t:"05:30", p:"inn", opt:true, s:"温泉へ出発", h:"宿を出発（ほったらかし温泉へ）", n:"行きたい人だけ。山の上まで車で約20分"},
+  {t:"05:50", p:"hottara", opt:true, s:"ほったらかし温泉", h:"ほったらかし温泉で朝風呂 ♨", n: rain
+    ? "雨の日も備え付けの菅笠をかぶって露天風呂に入れる。日の出や富士山は見えないことが多い"
+    : "日の出（6:30ごろ）と富士山を見ながら露天風呂。名物のたまごかけごはんも", drive:"宿から車で約20分"},
+  {t:"08:00", p:"inn", opt:true, s:"宿に戻る", h:"宿に戻って朝ごはん", n:"朝ごはんと片付け。チェックアウトの10:00に間に合うように"},
+];
+const PLANS = {
+  sun: {
+    d1: [
+      {t:"07:30", p:"tokyo", s:"東京出発", h:"東京出発", n:"各自の車で出発"},
+      {t:"途中", p:"dango", s:"談合坂SA 合流", h:"談合坂SAで合流", n:"中央道・下り線。トイレと朝ごはん", drive:"東京から車で約1時間〜"},
+      {t:"10:00", p:"mihara", s:"見晴し園 りんご狩り", h:"フルーツ狩り（見晴し園）🍎", n:"予約済み。笛吹市一宮町、甲府盆地を見わたす高台でりんご狩り", drive:"勝沼ICを降りて約5分"},
+      ...COMMON_D1_TAIL,
+    ],
+    d2: [
+      ...OPT_D2(false),
+      {t:"10:00", p:"inn", s:"宿を出発", h:"チェックアウト", n:"忘れ物と片付けの確認を"},
+      {t:"10:30", p:"science", s:"県立科学館", h:"山梨県立科学館", n:"甲府市。広い屋外アスレチックと科学遊び"},
+      {t:"13:00", p:null, h:"昼食・甲府周辺", n:"甲府周辺でランチ（お店は未定）"},
+      {t:"14:30", p:"linear", s:"リニア見学センター", h:"リニア見学センター 🚄", n:"都留市。帰り道に立ち寄り見学", drive:"甲府から車で約50分"},
+      {t:"16:30", p:"tokyo", s:"帰路へ", h:"帰路へ", n:"渋滞状況を見ながらゆっくり出発", drive:"東京まで約1時間半〜（渋滞で大きく変わります）"},
+    ],
+  },
+  rain: {
+    d1: [
+      {t:"07:30", p:"tokyo", s:"東京出発", h:"東京出発", n:"各自の車で出発"},
+      {t:"途中", p:"dango", s:"談合坂SA 合流", h:"談合坂SAで合流", n:"中央道・下り線。トイレと朝ごはん", drive:"東京から車で約1時間〜"},
+      {t:"10:00", p:"museum", s:"県立博物館", h:"山梨県立博物館", n:"屋内の施設。11月は工事で常設展示室が休室中で、見られるのは企画展「甲斐絹物語」（11/30まで）。小雨なら見晴し園に電話で相談してもよい", rain:true, drive:"一宮御坂ICから約5分"},
+      ...COMMON_D1_TAIL,
+    ],
+    d2: [
+      ...OPT_D2(true),
+      {t:"10:00", p:"inn", s:"宿を出発", h:"チェックアウト", n:"忘れ物と片付けの確認を"},
+      {t:"10:30", p:"science", s:"県立科学館", h:"山梨県立科学館", n:"屋内の展示とプラネタリウムを中心に。アスレチックは雨ならお休み", rain:true},
+      {t:"13:00", p:null, h:"昼食・甲府周辺", n:"甲府周辺でランチ（お店は未定）"},
+      {t:"14:30", p:"linear", s:"リニア見学センター", h:"リニア見学センター 🚄", n:"見学は屋内なので雨でも大丈夫", drive:"甲府から車で約50分"},
+      {t:"16:30", p:"tokyo", s:"帰路へ", h:"帰路へ", n:"雨の日は渋滞や事故が増えやすいので、早めの出発も検討", rain:true, drive:"東京まで約1時間半〜（渋滞で大きく変わります）"},
+    ],
+  },
+};
+
+const state = {plan:"sun", day:"all", view:"svg", hl:null};
+const gq = q => "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q);
+const dir = (o, d, w) => "https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=" + encodeURIComponent(o) + "&destination=" + encodeURIComponent(d) + (w.length ? "&waypoints=" + encodeURIComponent(w.join("|")) : "");
+const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const days = () => state.day === "all" ? ["d1","d2"] : [state.day];
+
+// 今の表示に出す訪問（場所のある予定）と、場所ごとのまとまり
+function numbered(d){
+  let c = 0;
+  return PLANS[state.plan][d].map((s, i) => ({...s, d, n: s.opt ? "♨" : ++c, id: d+"-"+(i+1)}));
+}
+function visits(){
+  const out = [];
+  days().forEach(d => numbered(d).forEach(v => { if (v.p) out.push(v); }));
+  return out;
+}
+function groups(vs){
+  const g = {};
+  vs.forEach(v => (g[v.p] = g[v.p] || []).push(v));
+  return g;
+}
+function legs(){
+  const out = [];
+  days().forEach(d => {
+    const pts = PLANS[state.plan][d].filter(s => s.p);
+    for (let i = 0; i < pts.length - 1; i++) if (pts[i].p !== pts[i+1].p) out.push({d, a:pts[i].p, b:pts[i+1].p, opt: pts[i].p === "hottara" || pts[i+1].p === "hottara"});
+  });
+  return out;
+}
+// 2点間をゆるく曲げた線（1日目は左回り、2日目は右回り）
+function curve(ax, ay, bx, by, d, steps){
+  const dx = bx-ax, dy = by-ay, len = Math.hypot(dx, dy) || 1;
+  const bend = Math.min(70, len*.22) * (d === "d1" ? 1 : -1);
+  const cx = (ax+bx)/2 - dy/len*bend, cy = (ay+by)/2 + dx/len*bend;
+  const pts = [];
+  for (let k = 0; k <= steps; k++){ const t = k/steps, u = 1-t; pts.push([u*u*ax + 2*u*t*cx + t*t*bx, u*u*ay + 2*u*t*cy + t*t*by]); }
+  return {pts, cx, cy};
+}
+
+// ===== 実際の地図（Leaflet + 地理院タイル） =====
+let lmap = null, lLayer = null, lMarkers = {}, realOk = typeof L !== "undefined";
+function initLeaflet(){
+  if (!realOk) return useSVG(true);
+  lmap = L.map("lmap", {scrollWheelZoom:false, zoomSnap:.25}).setView([35.64, 138.80], 10);
+  lmap.attributionControl.setPrefix(false);
+  const tiles = L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", {
+    maxZoom:18, minZoom:5,
+    attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a> · Leaflet'
+  }).addTo(lmap);
+  let loaded = false, errs = 0;
+  tiles.on("tileload", () => { loaded = true; });
+  tiles.on("tileerror", () => { if (!loaded && ++errs >= 3) useSVG(true); });
+  setTimeout(() => { if (!loaded) useSVG(true); }, 7000);
+  lLayer = L.layerGroup().addTo(lmap);
+}
+function renderLeaflet(fit){
+  if (!lmap) return;
+  lLayer.clearLayers(); lMarkers = {};
+  const vs = visits(), g = groups(vs);
+  legs().forEach(l => {
+    const A = lmap.project([PLACES[l.a].lat, PLACES[l.a].lon], 12), B = lmap.project([PLACES[l.b].lat, PLACES[l.b].lon], 12);
+    const c = curve(A.x, A.y, B.x, B.y, l.d, 24);
+    const ll = c.pts.map(p => lmap.unproject(L.point(p[0], p[1]), 12));
+    L.polyline(ll, {color:tok("--"+l.d), weight:l.opt ? 2.5 : 3.5, opacity:l.opt ? .55 : .9, dashArray:l.opt ? "2 6" : "8 7", interactive:false}).addTo(lLayer);
+    const m = Math.round(c.pts.length*.55), p0 = c.pts[m-1], p1 = c.pts[m];
+    const ang = Math.atan2(p1[1]-p0[1], p1[0]-p0[0]) * 180/Math.PI;
+    L.marker(ll[m], {interactive:false, icon:L.divIcon({className:"larrow", iconSize:[16,16], iconAnchor:[8,8],
+      html:`<svg width="16" height="16" viewBox="0 0 16 16" style="transform:rotate(${ang}deg)"><path d="M2,2 L14,8 L2,14 L5,8 z" fill="${tok("--"+l.d)}"/></svg>`})}).addTo(lLayer);
+  });
+  Object.entries(g).forEach(([p, list]) => {
+    const P = PLACES[p], w = 26 + (list.length-1)*21, half = w/2;
+    const mk = L.marker([P.lat, P.lon], {keyboard:true, title:P.name, icon:L.divIcon({className:"", iconSize:[w,26], iconAnchor:[half,13],
+      html:`<div class="lpins">${list.map(v => `<span class="lnum ${v.d}${v.opt ? " opt" : ""}" data-id="${v.id}">${v.n}</span>`).join("")}</div>`})});
+    const rows = list.length === 1
+      ? `<div class="row two ${list[0].d}"><span class="t">${list[0].t}</span><span class="nm">${list[0].s}</span></div>`
+      : list.map(v => `<div class="row ${v.d}${v.opt ? " opt" : ""}"><span class="t">${v.t}</span><span class="nm">${v.s}</span></div>`).join("");
+    const gap = 6, off = P.dir==="left"?[-half-gap,0]:P.dir==="right"?[half+gap,0]:P.dir==="top"?[0,-13-gap]:[0,13+gap];
+    if (P.off) { off[0] += P.off[0]; off[1] += P.off[1]; }
+    mk.bindTooltip(rows, {permanent:true, direction:P.dir, className:"ltip", offset:off});
+    mk.bindPopup(`<b>${P.name}</b><br>${P.addr}${P.tel ? `<br>電話 ${P.tel}` : ""}<br><a href="${gq(P.q)}" target="_blank" rel="noopener">Googleマップで開く ↗</a>`);
+    mk.on("click", () => focusStop(list[0].id, false));
+    mk.addTo(lLayer);
+    list.forEach(v => lMarkers[v.id] = mk);
+  });
+  if (fit){
+    const pts = Object.keys(g).filter(p => p !== "tokyo").map(p => [PLACES[p].lat, PLACES[p].lon]);
+    if (pts.length) lmap.fitBounds(pts, {padding:[50,50]});
+  }
+  applyHighlight();
+}
+
+// ===== イラスト地図（座標をそのまま縮小して描く） =====
+const NS = "http://www.w3.org/2000/svg";
+const sv = (tag, attrs, parent) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (parent) parent.appendChild(n); return n; };
+const K = 1357, KY = 1669; // 1度あたりのピクセル（経度・緯度。緯度35.6度のメルカトル比）
+const proj = (lat, lon) => [30 + (lon - 138.54)*K, 63 + (35.70 - lat)*KY];
+const sp = p => PLACES[p].sx ? [PLACES[p].sx, PLACES[p].sy] : proj(PLACES[p].lat, PLACES[p].lon);
+const textW = s => [...s].reduce((w, c) => w + (c.charCodeAt(0) > 255 ? 11.5 : 6.6), 0);
+let sPins = {};
+function drawSvgBg(){
+  const bg = document.getElementById("s-bg");
+  const [bx, by] = proj(35.655, 138.62);
+  sv("ellipse", {class:"s-basin", cx:bx, cy:by, rx:150, ry:70}, bg);
+  sv("text", {class:"s-area", x:bx-60, y:by+90}, bg).textContent = "甲 府 盆 地";
+  const road = [[35.6812,139.30],[35.6324,139.0637],[35.6015,138.9119],[35.6531,138.7409],[35.6343,138.6730],[35.6010,138.5875]].map(([a,b]) => proj(a,b));
+  road[0] = [820, road[0][1] + 20];
+  sv("polyline", {class:"s-road", points:road.map(p => p.join(",")).join(" ")}, bg);
+  const ftk = [[35.6015,138.9119],[35.581,138.918],[35.53,138.86]].map(([a,b]) => proj(a,b));
+  sv("polyline", {class:"s-road", points:ftk.map(p => p.join(",")).join(" ")}, bg);
+  const [jx, jy] = proj(35.6015, 138.9119);
+  sv("text", {class:"s-small", x:jx-14, y:jy-10}, bg).textContent = "大月JCT";
+  const [ix, iy] = proj(35.6531, 138.7409);
+  sv("text", {class:"s-small", x:ix+6, y:iy-8}, bg).textContent = "勝沼IC";
+  sv("text", {class:"s-small", x:650, y:155, transform:"rotate(-12 650 155)"}, bg).textContent = "中央自動車道";
+  sv("text", {class:"s-small", x:758, y:129}, bg).textContent = "東京方面 →";
+}
+function renderSVG(){
+  const A = document.getElementById("s-arrows"), P = document.getElementById("s-pins");
+  A.innerHTML = ""; P.innerHTML = ""; sPins = {};
+  legs().forEach(l => {
+    const [ax, ay] = sp(l.a), [bx, by] = sp(l.b);
+    const dx = bx-ax, dy = by-ay, len = Math.hypot(dx, dy), r = 11;
+    const c = curve(ax + dx/len*r, ay + dy/len*r, bx - dx/len*(r+3), by - dy/len*(r+3), l.d, 1);
+    const s = c.pts[0], e = c.pts[1];
+    sv("path", {class:"arrow " + l.d + (l.opt ? " opt" : ""), d:`M${s[0]},${s[1]} Q${c.cx},${c.cy} ${e[0]},${e[1]}`, "marker-end":`url(#ah-${l.d})`}, A);
+  });
+  const g = groups(visits());
+  Object.entries(g).forEach(([p, list]) => {
+    const [x, y] = sp(p), PL = PLACES[p];
+    const gr = sv("g", {class:"spin", tabindex:"0", role:"button", "aria-label":PL.name}, P);
+    const single = list.length === 1;
+    const w = Math.max(...list.map(v => single ? Math.max(textW(v.t), textW(v.s)*1.08) : textW(v.t) + 8 + textW(v.s)*1.08)) + 18;
+    const h = single ? 42 : list.length*19 + 10;
+    let [bx, by] = PL.box; bx = Math.min(bx, 816 - w); by = Math.min(by, 331 - h);
+    const nx = Math.max(bx, Math.min(x, bx + w)), ny = Math.max(by, Math.min(y, by + h));
+    sv("line", {class:"leader", x1:x, y1:y, x2:nx, y2:ny}, gr);
+    sv("rect", {class:"box", x:bx, y:by, width:w, height:h, rx:7}, gr);
+    if (single){
+      sv("text", {class:"t " + list[0].d, x:bx + 9, y:by + 17}, gr).textContent = list[0].t;
+      sv("text", {class:"nm", x:bx + 9, y:by + 34}, gr).textContent = list[0].s;
+    } else list.forEach((v, i) => {
+      const yy = by + 19 + i*19;
+      sv("text", {class:"t " + v.d, x:bx + 9, y:yy}, gr).textContent = v.t;
+      sv("text", {class:"nm", x:bx + 9 + textW(v.t) + 8, y:yy}, gr).textContent = v.s;
+    });
+    const step = 19, x0 = x - (list.length-1)*step/2;
+    list.forEach((v, i) => {
+      const c = sv("circle", {class:"dot " + v.d + (v.opt ? " opt" : ""), cx:x0 + i*step, cy:y, r:11.5, "data-id":v.id}, gr);
+      sv("text", {class:"dn" + (v.opt ? " opt " + v.d : ""), x:x0 + i*step, y:y + 4.3}, gr).textContent = v.n;
+    });
+    const go = () => focusStop(list[0].id, false);
+    gr.addEventListener("click", go);
+    gr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+    list.forEach(v => sPins[v.id] = gr);
+  });
+  applyHighlight();
+}
+
+function contact(s, P){
+  const c = P;
+  if (!c || (!c.addr && !c.tel)) return "";
+  return `<dl class="contact">${c.addr ? `<dt>住所</dt><dd>${c.addr}</dd>` : ""}${c.tel ? `<dt>電話</dt><dd><a class="tel" href="tel:${c.tel.replace(/-/g,"")}">${c.tel}</a>${c.telNote ? `<span class="tn">（${c.telNote}）</span>` : ""}</dd>` : ""}</dl>`;
+}
+function renderContacts(){
+  const keys = ["dango","mihara","museum","akafuji","shingen","beisia","inn","hottara","science","linear"];
+  const used = new Set(["d1","d2"].flatMap(d => PLANS[state.plan][d].map(s => s.p)));
+  document.getElementById("contacts").innerHTML = keys.filter(k => used.has(k)).map(k => {
+    const c = PLACES[k];
+    return `<tr><th>${c.name}</th><td>${c.addr || "—"}</td><td>${c.tel ? `<a class="tel" href="tel:${c.tel.replace(/-/g,"")}">${c.tel}</a>${c.telNote ? `<span class="tn">（${c.telNote}）</span>` : ""}` : (k === "inn" ? '<span class="tn">予約確認メールで確認</span>' : "—")}</td></tr>`;
+  }).join("");
+}
+
+// ===== タイムライン =====
+function renderTimeline(){
+  ["d1","d2"].forEach(d => {
+    const ol = document.getElementById("list-" + d); ol.innerHTML = "";
+    numbered(d).forEach(v => {
+      const s = PLANS[state.plan][d][+v.id.slice(3)-1], id = v.id, P = s.p ? PLACES[s.p] : null;
+      const li = document.createElement("li");
+      li.className = "stop" + (P ? "" : " noplace") + (s.opt ? " opt" : ""); li.dataset.id = id; li.tabIndex = 0;
+      li.innerHTML = `<time>${s.t}</time><span class="num">${v.n}</span>
+        <div><h3>${s.h}${s.opt ? '<span class="opttag">オプション</span>' : ""}${s.rain ? '<span class="raintag">雨の日</span>' : ""}</h3><p>${s.n}</p>
+        ${contact(s, P)}
+        ${P ? `<a class="gmini" href="${gq(P.q)}" target="_blank" rel="noopener">Googleマップで見る ↗</a>` : ""}</div>
+        ${s.drive ? `<div class="drive">🚗 ${s.drive}</div>` : ""}`;
+      li.addEventListener("mouseenter", () => { state.hl = id; applyHighlight(); });
+      li.addEventListener("focus", () => { state.hl = id; applyHighlight(); });
+      li.addEventListener("click", e => { if (!e.target.closest("a")) focusStop(id, true); });
+      ol.appendChild(li);
+    });
+  });
+}
+function applyHighlight(){
+  document.querySelectorAll(".stop.on,.dot.on,.lnum.on").forEach(n => n.classList.remove("on"));
+  const id = state.hl; if (!id) return;
+  document.querySelector(`.stop[data-id="${id}"]`)?.classList.add("on");
+  document.querySelectorAll(`.dot[data-id="${id}"],.lnum[data-id="${id}"]`).forEach(n => n.classList.add("on"));
+}
+function focusStop(id, toMap){
+  state.hl = id; applyHighlight();
+  const s = PLANS[state.plan][id.slice(0,2)][+id.slice(3)-1];
+  if (toMap){
+    document.querySelector(".mapcard").scrollIntoView({behavior:"smooth", block:"center"});
+    if (lmap && state.view === "real" && s.p && s.p !== "tokyo") lmap.flyTo([PLACES[s.p].lat, PLACES[s.p].lon], Math.max(lmap.getZoom(), 12), {duration:.6});
+  } else {
+    document.querySelector(`.stop[data-id="${id}"]`)?.scrollIntoView({behavior:"smooth", block:"center"});
+  }
+}
+
+// ===== Googleマップのルート =====
+function renderRoutes(){
+  ["d1","d2"].forEach(d => {
+    const ps = [];
+    PLANS[state.plan][d].forEach(s => { if (s.p && ps[ps.length-1] !== s.p) ps.push(s.p); });
+    const q = ps.map(p => PLACES[p].q);
+    document.getElementById("route-" + d).href = dir(q[0], q[q.length-1], q.slice(1, -1));
+  });
+}
+
+// ===== 切り替え =====
+function setPressed(sel, el){ document.querySelectorAll(sel).forEach(b => b.setAttribute("aria-pressed", b === el)); }
+function useSVG(forced){
+  state.view = "svg";
+  document.getElementById("realwrap").hidden = true;
+  document.getElementById("svgwrap").hidden = false;
+  setPressed("[data-v]", document.getElementById("v-svg"));
+  if (forced){
+    realOk = false;
+    document.getElementById("v-real").disabled = true;
+    document.getElementById("mapnote").textContent = "この画面では実際の地図を読み込めないため、座標どおりに描いたイラスト地図を表示しています。各地点は「Googleマップで見る」で開けます。";
+  }
+  renderSVG();
+}
+function useReal(){
+  if (realOk && !lmap){
+    document.getElementById("realwrap").hidden = false;
+    initLeaflet();
+  }
+  if (!realOk || !lmap) { useSVG(true); return; }
+  state.view = "real";
+  document.getElementById("svgwrap").hidden = true;
+  document.getElementById("realwrap").hidden = false;
+  setPressed("[data-v]", document.getElementById("v-real"));
+  lmap.invalidateSize(); renderLeaflet(true);
+}
+function renderAll(fit){
+  renderTimeline(); renderContacts(); renderRoutes(); renderSVG(); renderLeaflet(fit);
+  const b = document.getElementById("plan-badge");
+  b.className = state.plan; b.textContent = state.plan === "sun" ? "晴れの日" : "雨の日";
+}
+document.querySelectorAll("[data-plan]").forEach(b => b.addEventListener("click", () => {
+  state.plan = b.dataset.plan; state.hl = null; setPressed("[data-plan]", b);
+  try { localStorage.setItem("yamanashi-plan", state.plan); } catch (e) {}
+  renderAll(true);
+}));
+document.querySelectorAll("[data-f]").forEach(b => b.addEventListener("click", () => {
+  state.day = b.dataset.f; setPressed("[data-f]", b); renderSVG(); renderLeaflet(true);
+}));
+document.getElementById("v-real").addEventListener("click", useReal);
+document.getElementById("v-svg").addEventListener("click", () => useSVG(false));
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => renderLeaflet(false));
+
+try { const p = localStorage.getItem("yamanashi-plan"); if (p === "rain" || p === "sun") { state.plan = p; setPressed("[data-plan]", document.getElementById("plan-" + p)); } } catch (e) {}
+drawSvgBg();
+renderAll(true);
+// 最初の表示では地図の大きさが確定していないことがあるので、描画後と読み込み完了後に合わせ直す
+const refit = () => { if (lmap && state.view === "real") { lmap.invalidateSize(); renderLeaflet(true); } };
+requestAnimationFrame(refit);
+addEventListener("load", refit);
+
+// ===== 持ち物 =====
+const ITEMS = ["上着・手袋（朝は0℃近く）","歩きやすい靴","アスレチック用の動きやすい服","折りたたみ傘・レインコート","保冷バッグ・保冷剤","エコバッグ・ゴミ袋","現金（農園や売店用）","モバイルバッテリー","常備薬","タオル・洗面用具","パジャマ・着替え","運転免許証・ETCカード"];
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem("yamanashi-pack2") || "{}"); } catch (e) {}
+const box = document.getElementById("checks");
+ITEMS.forEach((t, i) => {
+  const lab = document.createElement("label");
+  lab.innerHTML = `<input type="checkbox" id="pack-${i}"${saved[t] ? " checked" : ""}><span>${t}</span>`;
+  lab.querySelector("input").addEventListener("change", e => {
+    saved[t] = e.target.checked;
+    try { localStorage.setItem("yamanashi-pack2", JSON.stringify(saved)); } catch (err) {}
+  });
+  box.appendChild(lab);
+});
+</script>
